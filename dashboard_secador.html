@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Secador Solar</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #F4F6F8; --card: #FFFFFF;
+      --primary: #C85A0A; --green: #1E8449;
+      --text: #2D1B00; --tl: #666;
+      --border: #E5E5E5; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+    /* HEADER */
+    .header {
+      background: linear-gradient(135deg, #B84E08, #E87B20);
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .btn-back {
+      padding: 8px 14px; background: rgba(255,255,255,0.2); color: white;
+      border: 2px solid rgba(255,255,255,0.5); border-radius: 8px;
+      font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.3); }
+    .header-title { color: white; flex: 1; min-width: 0; }
+    .header-title h1 { font-size: clamp(15px, 4vw, 20px); font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .header-title p  { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+    .btn-refresh-db {
+      padding: 8px 14px; background: rgba(255,255,255,0.2); color: white;
+      border: 2px solid rgba(255,255,255,0.5); border-radius: 8px;
+      font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-refresh-db:hover { background: rgba(255,255,255,0.3); }
+
+    /* CONTROLS */
+    .controls {
+      background: white; border-bottom: 1.5px solid var(--border);
+      padding: 10px 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 3px; }
+    .ctrl-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: var(--tl); }
+    select.ctrl {
+      padding: 7px 28px 7px 10px; border: 1.5px solid var(--border);
+      border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--text);
+      background: #FAFAFA; outline: none; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+    }
+    select.ctrl:focus { border-color: var(--primary); }
+    #loading-txt { font-size: 12px; color: var(--tl); font-style: italic; align-self: center; }
+
+    /* MAIN GRID */
+    .main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .main { grid-template-columns: 1fr; padding: 10px; } }
+    .full-width { grid-column: 1 / -1; }
+
+    /* CARD */
+    .card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); border: 1.5px solid var(--border); min-width: 0; }
+    .card-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .card-title span { font-size: 17px; }
+
+    /* KPI */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+    @media (max-width: 700px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+    .kpi { background: var(--card); border-radius: 12px; padding: 14px 10px; box-shadow: var(--shadow); border: 1.5px solid var(--border); text-align: center; }
+    .kpi-val { font-size: clamp(20px,5vw,28px); font-weight: 900; color: var(--primary); line-height: 1; }
+    .kpi-lbl { font-size: 10px; font-weight: 700; color: var(--tl); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-sub { font-size: 9px; color: #AAA; margin-top: 2px; }
+
+    /* EFFICIENCY TABLE */
+    .tscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .eff-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .eff-table th { background: #B84E08; color: white; padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .eff-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .eff-table tr:nth-child(even) td { background: #FDF8F4; }
+    .eff-table tr.best-row td { background: #E9F8EF !important; font-weight: 700; }
+    .eff-table tr.best-row td:first-child::before { content: '🥇 '; }
+    .score-badge { padding: 2px 7px; border-radius: 20px; font-weight: 900; font-size: 11px; }
+    .score-badge.ex { background:#EDFAF3; color:#1E8449; }
+    .score-badge.bu { background:#EDFAF3; color:#229954; }
+    .score-badge.re { background:#FDFAF0; color:#B7770D; }
+    .score-badge.ma { background:#FFF3F2; color:#B03A2E; }
+
+    .no-data { text-align:center; padding:24px; color:var(--tl); font-size:13px; line-height:1.6; }
+    .config-warn { background:#FEF9E7; border:1.5px solid #F1C40F; border-radius:10px; padding:12px; font-size:13px; font-weight:600; color:#8B6914; }
+
+    /* CHART CONTAINERS — responsive height */
+    .chart-sm { position: relative; height: 220px; }
+    .chart-md { position: relative; height: 280px; }
+    @media (max-width: 700px) {
+      .chart-sm { height: 180px; }
+      .chart-md { height: 220px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <button class="btn-back" onclick="window.location.href='rosario_deshidratado.html'">← App</button>
+  <div class="header-title">
+    <h1>📊 Dashboard — Secador Solar</h1>
+    <p>CITEagroindustrial Huallaga · Tingo María, Huánuco</p>
+  </div>
+  <button class="btn-refresh-db" onclick="cargarDatos()">🔄 Actualizar</button>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="ctrl-group">
+    <div class="ctrl-label">Año</div>
+    <select class="ctrl" id="sel-year" onchange="aplicarFiltros()">
+      <option value="2026">2026</option>
+      <option value="2027">2027</option>
+      <option value="2028">2028</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Mes</div>
+    <select class="ctrl" id="sel-month" onchange="aplicarFiltros()">
+      <option value="0">Todo el año</option>
+      <option value="1">Enero</option><option value="2">Febrero</option>
+      <option value="3">Marzo</option><option value="4">Abril</option>
+      <option value="5">Mayo</option><option value="6">Junio</option>
+      <option value="7">Julio</option><option value="8">Agosto</option>
+      <option value="9">Septiembre</option><option value="10">Octubre</option>
+      <option value="11">Noviembre</option><option value="12">Diciembre</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Producto</div>
+    <select class="ctrl" id="sel-product" onchange="aplicarFiltros()">
+      <option value="">Todos</option>
+      <option value="Kion Hawaiano">Kion Hawaiano</option>
+      <option value="Kion Criollo">Kion Criollo</option>
+      <option value="Cúrcuma">Cúrcuma</option>
+      <option value="Otros">Otros</option>
+    </select>
+  </div>
+  <div id="loading-txt"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- WARN config -->
+  <div class="full-width" id="config-warn-wrap" style="display:none">
+    <div class="config-warn">⚙️ <strong>Configura APPS_SCRIPT_URL</strong> al inicio del archivo para leer datos de Google Sheets. Mostrando datos de ejemplo.</div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="full-width kpi-grid">
+    <div class="kpi"><div class="kpi-val" id="kpi-lotes">—</div><div class="kpi-lbl">Total lotes</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-pi">—</div><div class="kpi-lbl">Materia prima</div><div class="kpi-sub">kg ingresados</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-pf">—</div><div class="kpi-lbl">Producto obtenido</div><div class="kpi-sub">kg</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-score">—</div><div class="kpi-lbl">Score promedio</div><div class="kpi-sub">puntos / 100</div></div>
+  </div>
+
+  <!-- CHART 1: Score por lote -->
+  <div class="card">
+    <div class="card-title"><span>🏅</span> Score por lote del período</div>
+    <div class="chart-sm"><canvas id="chartScore"></canvas></div>
+  </div>
+
+  <!-- CHART 2: Materia prima -->
+  <div class="card">
+    <div class="card-title"><span>⚖️</span> Materia prima procesada por lote (kg)</div>
+    <div class="chart-sm"><canvas id="chartKg"></canvas></div>
+  </div>
+
+  <!-- EFFICIENCY TABLE -->
+  <div class="card full-width">
+    <div class="card-title"><span>🏆</span> Ranking de eficiencia — mejores lotes</div>
+    <div id="eff-table-wrap"></div>
+  </div>
+
+  <!-- CHART 3: Producción mensual (barras + línea tendencia) -->
+  <div class="card full-width">
+    <div class="card-title">
+      <span>📦</span> Producción mensual — kg procesados por mes
+      <select class="ctrl" id="sel-year-mensual" onchange="renderMensual()"
+        style="margin-left:auto;font-size:12px;padding:5px 24px 5px 8px;">
+        <option value="2026">2026</option>
+        <option value="2027">2027</option>
+        <option value="2028">2028</option>
+      </select>
+    </div>
+    <div class="chart-md"><canvas id="chartMensual"></canvas></div>
+  </div>
+
+</div>
+
+<script>
+// ═══ CONFIGURACIÓN ════════════════════════════════════
+const APPS_SCRIPT_URL = 'TU_URL_APPS_SCRIPT_AQUI'; // ← Misma URL que en la app
+
+// ═══ ESTADO ═══════════════════════════════════════════
+let todosLotes = [];
+let lotesFiltrados = [];
+const charts = {};
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const C = {
+  orange: '#C85A0A', orangeL: 'rgba(200,90,10,0.78)',
+  green:  '#1E8449', greenL:  'rgba(30,132,73,0.78)',
+  blue:   '#2980B9', yellow:  '#D4AC0D', red: '#C0392B'
+};
+
+// ═══ CARGA ════════════════════════════════════════════
+async function cargarDatos() {
+  const txt = document.getElementById('loading-txt');
+  txt.textContent = '⏳ Cargando...';
+
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('TU_URL')) {
+    document.getElementById('config-warn-wrap').style.display = 'block';
+    todosLotes = ejemplos();
+    aplicarFiltros();
+    txt.textContent = '⚠️ Datos de ejemplo';
+    return;
+  }
+
+  try {
+    const res  = await fetch(APPS_SCRIPT_URL);
+    const json = await res.json();
+    todosLotes = (json.data || []).map(norm);
+    txt.textContent = `✅ ${todosLotes.length} lotes`;
+  } catch {
+    txt.textContent = '❌ Error — usando ejemplos';
+    todosLotes = ejemplos();
+  }
+  aplicarFiltros();
+}
+
+function norm(r) {
+  return {
+    id:       r['ID']           || r.id          || '',
+    fecha:    r['Fecha']        || r.fecha        || '',
+    producto: r['Producto']     || r.producto     || '',
+    pi:       +r['Pi_kg']       || +r.pi          || 0,
+    pf_esp:   +r['Pf_esp_kg']   || +r.pf_esp      || 0,
+    pf_real:  +r['Pf_real_kg']  || +r.pf_real     || 0,
+    h_prod:   +r['H_prod_%']    || +r.h_prod      || 0,
+    rend:     +r['Rend_real_%'] || +r.rend        || 0,
+    t_teo:    +r['t_teo_h']     || +r.t_teo       || 0,
+    t_real:   +r['t_real_h']    || +r.t_real      || 0,
+    rad:      +r['Rad_MJ']      || +r.rad         || 0,
+    temp:     +r['Temp_C']      || +r.temp        || 0,
+    hr:       +r['HR_%']        || +r.hr          || 0,
+    sc_cl:    +r['Score_clima'] || +r.score_clima || 0,
+    score:    +r['Score_lote']  || +r.score_lote  || +r.score || 0
+  };
+}
+
+function parseDate(s) {
+  const p = String(s||'').split('/');
+  return p.length === 3 ? { d:+p[0], m:+p[1], y:+p[2] } : null;
+}
+
+// ═══ FILTROS ══════════════════════════════════════════
+function aplicarFiltros() {
+  const year    = +document.getElementById('sel-year').value;
+  const month   = +document.getElementById('sel-month').value;
+  const product = document.getElementById('sel-product').value;
+
+  lotesFiltrados = todosLotes.filter(l => {
+    const dt = parseDate(l.fecha);
+    if (!dt || dt.y !== year) return false;
+    if (month > 0 && dt.m !== month) return false;
+    if (product && l.producto !== product) return false;
+    return true;
+  });
+
+  renderKPIs();
+  renderScore();
+  renderKg();
+  renderEff();
+  renderMensual();
+}
+
+// ═══ KPIs ════════════════════════════════════════════
+function renderKPIs() {
+  const n = lotesFiltrados.length;
+  const pi   = lotesFiltrados.reduce((a,l)=>a+l.pi,0);
+  const pf   = lotesFiltrados.reduce((a,l)=>a+l.pf_real,0);
+  const sc   = n ? Math.round(lotesFiltrados.reduce((a,l)=>a+l.score,0)/n) : 0;
+  document.getElementById('kpi-lotes').textContent = n;
+  document.getElementById('kpi-pi').textContent    = n ? fmtN(pi)+' kg' : '—';
+  document.getElementById('kpi-pf').textContent    = n ? fmtN(pf)+' kg' : '—';
+  document.getElementById('kpi-score').textContent = n ? sc : '—';
+}
+
+// ═══ CHART: Score por lote ════════════════════════════
+function renderScore() {
+  const labels = lotesFiltrados.map(l => l.id.split('-').slice(1).join('-'));
+  const data   = lotesFiltrados.map(l => l.score);
+  const colors = data.map(s => s>=85?C.green:s>=70?C.greenL:s>=50?C.yellow:C.red);
+  destroyChart('chartScore');
+  const ctx = document.getElementById('chartScore').getContext('2d');
+  charts['chartScore'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label:'Score del lote', data, backgroundColor:colors, borderRadius:6, maxBarThickness:45 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: { display: false }
+      },
+      scales: {
+        y: { beginAtZero:true, max:100, ticks:{ font:{size:11}, callback:v=>v+'/100' }, grid:{ color:'#F0F0F0' } },
+        x: { ticks:{ font:{size:10}, maxRotation:45 }, grid:{ display:false } }
+      }
+    }
+  });
+}
+
+// ═══ CHART: Materia prima ════════════════════════════
+function renderKg() {
+  const labels = lotesFiltrados.map(l => l.id.split('-').slice(1).join('-'));
+  destroyChart('chartKg');
+  const ctx = document.getElementById('chartKg').getContext('2d');
+  charts['chartKg'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label:'Pi (kg ingresados)',    data:lotesFiltrados.map(l=>l.pi),      backgroundColor:C.orangeL, borderRadius:4, maxBarThickness:28 },
+      { label:'Pf real (kg obtenidos)', data:lotesFiltrados.map(l=>l.pf_real), backgroundColor:C.greenL,  borderRadius:4, maxBarThickness:28 }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position:'top', labels:{ font:{size:11, weight:'700'} } },
+        datalabels: { display: false }
+      },
+      scales: {
+        y: { beginAtZero:true, ticks:{ font:{size:11} }, grid:{ color:'#F0F0F0' } },
+        x: { ticks:{ font:{size:10}, maxRotation:45 }, grid:{ display:false } }
+      }
+    }
+  });
+}
+
+// ═══ EFFICIENCY TABLE ════════════════════════════════
+function renderEff() {
+  const sorted = [...lotesFiltrados].sort((a,b)=>b.score-a.score);
+  const wrap   = document.getElementById('eff-table-wrap');
+  if (!sorted.length) { wrap.innerHTML='<div class="no-data">Sin datos para el período seleccionado</div>'; return; }
+  const scls   = s => s>=85?'ex':s>=70?'bu':s>=50?'re':'ma';
+  wrap.innerHTML = `
+    <div class="tscroll">
+      <table class="eff-table">
+        <thead><tr>
+          <th>#</th><th>ID</th><th>Fecha</th><th>Producto</th>
+          <th>Pi (kg)</th><th>Pf real</th><th>H prod</th><th>Rend</th>
+          <th>t.teo</th><th>t.real</th><th>Score</th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map((l,i)=>`
+            <tr class="${i===0?'best-row':''}">
+              <td>${i+1}</td><td>${l.id}</td><td>${l.fecha}</td><td>${l.producto}</td>
+              <td>${fmtN(l.pi)}</td><td>${fmtN(l.pf_real)}</td>
+              <td>${l.h_prod}%</td><td>${l.rend}%</td>
+              <td>${l.t_teo}h</td><td>${l.t_real}h</td>
+              <td><span class="score-badge ${scls(l.score)}">${l.score}/100</span></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ═══ CHART: Mensual — barras + línea tendencia ═══════
+function renderMensual() {
+  const year    = +document.getElementById('sel-year-mensual').value;
+  const product = document.getElementById('sel-product').value;
+
+  const byMonth = Array(12).fill(0);
+  todosLotes.forEach(l => {
+    const dt = parseDate(l.fecha);
+    if (!dt || dt.y !== year) return;
+    if (product && l.producto !== product) return;
+    byMonth[dt.m-1] += l.pi;
+  });
+
+  // Redondear a 1 decimal
+  const vals = byMonth.map(v => Math.round(v * 10) / 10);
+
+  destroyChart('chartMensual');
+  const ctx = document.getElementById('chartMensual').getContext('2d');
+
+  charts['chartMensual'] = new Chart(ctx, {
+    plugins: [ChartDataLabels],
+    data: {
+      labels: MESES,
+      datasets: [
+        {
+          type: 'bar',
+          label: `Kg procesados ${year}`,
+          data: vals,
+          backgroundColor: vals.map(v => v > 0 ? C.orangeL : '#E0E0E0'),
+          borderRadius: 8,
+          maxBarThickness: 55,
+          order: 2,
+          datalabels: {
+            anchor: 'end',
+            align: 'end',
+            offset: 2,
+            formatter: v => v > 0 ? v.toFixed(0)+' kg' : '',
+            font: { weight: 'bold', size: 11 },
+            color: '#2D1B00'
+          }
+        },
+        {
+          type: 'line',
+          label: 'Tendencia',
+          data: vals,
+          borderColor: C.green,
+          backgroundColor: C.green,
+          pointBackgroundColor: C.green,
+          pointRadius: vals.map(v => v > 0 ? 5 : 0),
+          pointHoverRadius: 7,
+          fill: false,
+          tension: 0.3,
+          order: 1,
+          datalabels: { display: false }
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 28 } },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { font: { size: 11, weight: '700' }, usePointStyle: true }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { font: { size: 11 }, callback: v => v+' kg' },
+          grid: { color: '#F0F0F0' }
+        },
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ═══ HELPERS ═════════════════════════════════════════
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+function fmtN(n) { return Math.round(n * 10) / 10; }
+
+// ═══ DATOS DE EJEMPLO ════════════════════════════════
+function ejemplos() {
+  return [
+    { id:'Lote-001-20260801',fecha:'01/08/2026',producto:'Kion Hawaiano',pi:100,pf_esp:31,pf_real:30.5,h_prod:10.2,rend:30.5,t_teo:36,t_real:34,rad:19.7,temp:28,hr:65,sc_cl:90,score:88 },
+    { id:'Lote-002-20260805',fecha:'05/08/2026',producto:'Kion Hawaiano',pi:150,pf_esp:46.5,pf_real:44,h_prod:11.5,rend:29.3,t_teo:48,t_real:50,rad:15.2,temp:27,hr:72,sc_cl:72,score:74 },
+    { id:'Lote-003-20260810',fecha:'10/08/2026',producto:'Cúrcuma',pi:80,pf_esp:20.8,pf_real:21,h_prod:11.8,rend:26.3,t_teo:36,t_real:38,rad:21.5,temp:29,hr:61,sc_cl:94,score:82 },
+    { id:'Lote-004-20260812',fecha:'12/08/2026',producto:'Kion Criollo',pi:120,pf_esp:33.6,pf_real:31,h_prod:12.0,rend:25.8,t_teo:48,t_real:52,rad:13.8,temp:26,hr:78,sc_cl:65,score:65 },
+    { id:'Lote-005-20260817',fecha:'17/08/2026',producto:'Kion Hawaiano',pi:200,pf_esp:62,pf_real:61,h_prod:10.0,rend:30.5,t_teo:36,t_real:35,rad:19.7,temp:28,hr:66,sc_cl:90,score:95 },
+    { id:'Lote-001-20260701',fecha:'01/07/2026',producto:'Cúrcuma',pi:60,pf_esp:15.6,pf_real:15.8,h_prod:11.0,rend:26.3,t_teo:36,t_real:37,rad:18.5,temp:27,hr:68,sc_cl:85,score:84 },
+    { id:'Lote-002-20260715',fecha:'15/07/2026',producto:'Kion Hawaiano',pi:130,pf_esp:40.3,pf_real:39.5,h_prod:10.5,rend:30.4,t_teo:48,t_real:46,rad:16.2,temp:28,hr:70,sc_cl:78,score:87 },
+    { id:'Lote-001-20260601',fecha:'01/06/2026',producto:'Kion Hawaiano',pi:90,pf_esp:27.9,pf_real:27,h_prod:10.3,rend:30.0,t_teo:36,t_real:36,rad:20.1,temp:29,hr:63,sc_cl:92,score:91 },
+    { id:'Lote-001-20260501',fecha:'01/05/2026',producto:'Cúrcuma',pi:70,pf_esp:18.2,pf_real:18.5,h_prod:11.2,rend:26.4,t_teo:36,t_real:39,rad:17.8,temp:27,hr:71,sc_cl:80,score:79 },
+  ];
+}
+
+// ═══ INIT ════════════════════════════════════════════
+cargarDatos();
+</script>
+</body>
+</html>
