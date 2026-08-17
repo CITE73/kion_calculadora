@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Calculadora de Secador Solar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #FEF3E2; --primary: #C85A0A; --card: #FFFFFF;
+      --text: #2D1B00; --tl: #7A5C3A; --border: #F0E0C8;
+      --shadow: 0 2px 12px rgba(200,90,10,0.10);
+    }
+    body { font-family: 'Nunito', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 52px; }
+
+    .header { background: linear-gradient(135deg, #B84E08, #E87B20); padding: 20px 16px 24px; text-align: center; position: relative; overflow: hidden; }
+    .header::before { content: '🌿🌿'; position: absolute; font-size: 90px; opacity: 0.07; top: -8px; right: -8px; line-height: 1; pointer-events: none; }
+    .hname { font-size: 22px; font-weight: 900; color: #fff; letter-spacing: -0.3px; }
+    .hsub  { font-size: 12px; color: rgba(255,255,255,0.82); margin-top: 4px; font-weight: 600; }
+
+    .abar { background: white; border-bottom: 1.5px solid var(--border); padding: 10px 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.07); position: sticky; top: 0; z-index: 100; }
+    .abar-inner { max-width: 480px; margin: 0 auto; display: flex; gap: 10px; }
+    .abtn { flex: 1; padding: 10px; border-radius: 10px; font-family: 'Nunito', system-ui, sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; border: 2px solid; transition: all 0.18s; background: white; }
+    .abtn:active { opacity: 0.78; transform: scale(0.97); }
+    .abtn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .abtn-nuevo   { color: #1E8449; border-color: #27AE60; }
+    .abtn-refresh { color: var(--primary); border-color: var(--primary); }
+    .abtn-dash    { color: #2980B9; border-color: #2980B9; }
+
+    .wrap { max-width: 480px; margin: 0 auto; padding: 0 12px; }
+    .slabel { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: var(--primary); margin: 22px 0 4px; }
+    .clima-rango { font-size: 12px; font-weight: 700; color: var(--tl); text-align: center; margin-bottom: 10px; }
+    .card { background: var(--card); border-radius: 18px; padding: 18px 16px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
+    .ctitle { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 9px; line-height: 1.3; }
+    .sbadge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: white; font-size: 13px; font-weight: 900; flex-shrink: 0; }
+
+    /* CLIMA */
+    .cload { text-align: center; padding: 22px; color: var(--tl); font-size: 14px; font-weight: 600; }
+    .spin  { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .mdb { background: linear-gradient(135deg, #1E8449, #27AE60); border-radius: 14px; padding: 13px 16px; text-align: center; margin-bottom: 12px; color: white; }
+    .mdb-l { font-size: 10px; font-weight: 800; opacity: 0.88; letter-spacing: 1px; text-transform: uppercase; }
+    .mdb-d { font-size: 17px; font-weight: 900; margin: 3px 0 2px; line-height: 1.3; }
+    .mdb-s { font-size: 12px; opacity: 0.88; font-weight: 600; }
+
+    .cscroll { overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .cscroll::-webkit-scrollbar { height: 4px; }
+    .cscroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .crow { display: flex; gap: 10px; width: max-content; padding: 2px; }
+
+    .ccard { width: 148px; background: var(--card); border-radius: 14px; padding: 12px 10px 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 2.5px solid var(--border); flex-shrink: 0; }
+    .ccard.ideal   { border-color: #27AE60; background: #F0FFF6; }
+    .ccard.regular { border-color: #E67E22; background: #FFFBF0; }
+    .ccard.malo    { border-color: #E74C3C; background: #FFF5F5; }
+
+    .cdia  { font-size: 10px; font-weight: 800; color: var(--tl); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+    .cicon { font-size: 26px; line-height: 1; margin-bottom: 8px; }
+
+    /* Radiación — protagonista */
+    .rv { font-size: 26px; font-weight: 900; line-height: 1; }
+    .rv.alta  { color: #E67E22; } .rv.media { color: #D4AC0D; } .rv.baja { color: #85929E; }
+    .ru { font-size: 10px; font-weight: 700; color: var(--tl); margin: 2px 0 4px; text-transform: none; letter-spacing: 0; }
+    .re { font-size: 14px; font-weight: 900; margin-bottom: 7px; padding: 3px 8px; border-radius: 8px; display: inline-block; }
+    .re.alta  { color: #E67E22; background: #FEF5EC; }
+    .re.media { color: #D4AC0D; background: #FEFBEC; }
+    .re.baja  { color: #85929E; background: #F4F6F7; }
+
+    .cfila { font-size: 12px; font-weight: 700; color: var(--text); margin: 2px 0; }
+    .sbw { background: #F0E0C8; border-radius: 999px; height: 5px; margin: 8px 0 4px; overflow: hidden; }
+    .sb  { height: 100%; border-radius: 999px; transition: width 0.9s ease; }
+    .csl { font-size: 10px; font-weight: 800; }
+    .csl.ideal { color: #1E8449; } .csl.regular { color: #B7770D; } .csl.malo { color: #C0392B; }
+    .shint { text-align: right; font-size: 10px; color: var(--tl); font-weight: 600; margin-top: 4px; }
+
+    /* FORM */
+    .fg  { margin-bottom: 14px; }
+    .fl  { display: block; font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; line-height: 1.3; }
+    .fr2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    select, input[type="number"] {
+      width: 100%; padding: 13px 14px; border: 2px solid var(--border); border-radius: 11px;
+      font-family: 'Nunito', system-ui, sans-serif; font-size: 16px; font-weight: 600;
+      color: var(--text); background: #FFFAF5; outline: none; transition: border-color 0.2s;
+      -webkit-appearance: none; appearance: none;
+    }
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A5C3A' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px; }
+    select:focus, input:focus { border-color: var(--primary); background: #fff; }
+
+    .btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #B84E08, #E87B20); color: white; border: none; border-radius: 12px; font-family: 'Nunito', system-ui, sans-serif; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 4px; transition: opacity 0.2s, transform 0.1s; }
+    .btn:active { transform: scale(0.98); opacity: 0.88; }
+    .bsec { width: 100%; padding: 12px; background: #fff; color: var(--primary); border: 2px solid var(--primary); border-radius: 12px; font-family: 'Nunito', system-ui, sans-serif; font-size: 15px; font-weight: 800; cursor: pointer; margin-top: 10px; transition: all 0.2s; }
+    .bsec:active { background: #FEF3E2; }
+    .bdanger { color: #C0392B !important; border-color: #C0392B !important; }
+
+    /* RESULTS */
+    .rbox { margin-top: 18px; border-top: 2px dashed var(--border); padding-top: 16px; }
+    .rrow { display: flex; justify-content: space-between; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid #F9F0E8; gap: 12px; }
+    .rrow:last-of-type { border-bottom: none; }
+    .rlbl { font-size: 13px; color: var(--tl); font-weight: 600; flex: 1; line-height: 1.35; }
+    .rval { font-size: 16px; font-weight: 800; color: var(--text); text-align: right; }
+    .rval.hl { color: var(--primary); font-size: 19px; }
+
+    /* SEMÁFORO */
+    .sem { border-radius: 14px; padding: 14px; margin-top: 12px; display: flex; align-items: flex-start; gap: 12px; border: 2px solid; }
+    .sem.v { background: #E9F8EF; border-color: #27AE60; }
+    .sem.a { background: #FEF9E7; border-color: #F1C40F; }
+    .sem.r { background: #FDEDEC; border-color: #E74C3C; }
+    .semoji { font-size: 34px; flex-shrink: 0; line-height: 1; }
+    .stxt  { flex: 1; }
+    .stit  { font-size: 15px; font-weight: 900; line-height: 1.2; }
+    .stit.v { color: #1A6E3E; } .stit.a { color: #8B6914; } .stit.r { color: #B03A2E; }
+    .ssub  { font-size: 12px; font-weight: 600; color: var(--tl); margin-top: 4px; line-height: 1.5; }
+
+    /* TIEMPO BADGE */
+    .tbadge { background: linear-gradient(135deg, #FEF9E7, #FEF2CC); border: 2px solid #F5A623; border-radius: 13px; padding: 13px; text-align: center; margin-top: 12px; }
+    .tic  { font-size: 28px; margin-bottom: 4px; }
+    .ttxt { font-size: 15px; font-weight: 800; color: #7D5A0A; }
+    .tsub { font-size: 12px; color: #9A7020; margin-top: 3px; font-weight: 600; }
+
+    /* SCORE */
+    .scirc { width: 108px; height: 108px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 4px auto 18px; font-weight: 900; border: 5px solid; }
+    .scirc .sn { font-size: 32px; line-height: 1; }
+    .scirc .su { font-size: 12px; margin-top: 2px; font-weight: 700; }
+    .scirc.ex { border-color: #1E8449; color: #1E8449; background: #EDFAF3; }
+    .scirc.bu { border-color: #2ECC71; color: #229954; background: #EDFAF3; }
+    .scirc.re { border-color: #E67E22; color: #B7770D; background: #FDFAF0; }
+    .scirc.ma { border-color: #E74C3C; color: #B03A2E; background: #FFF3F2; }
+    .srecom { text-align: center; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.45; margin-bottom: 16px; }
+    .sitem { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #F9F0E8; }
+    .sitem:last-child { border-bottom: none; }
+    .slbl { font-size: 13px; font-weight: 600; color: var(--tl); flex: 1; }
+    .sbarw { width: 80px; background: #F0E0C8; border-radius: 999px; height: 8px; flex-shrink: 0; }
+    .sbar  { height: 100%; border-radius: 999px; }
+    .spts  { font-size: 13px; font-weight: 800; color: var(--text); width: 42px; text-align: right; flex-shrink: 0; }
+
+    /* BATCH TABLE */
+    .tscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tabla { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 12px; font-weight: 600; }
+    .tabla th { background: #B84E08; color: white; padding: 9px 10px; text-align: left; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .tabla td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+    .tabla tr:nth-child(even) td { background: #FDF8F4; }
+    .sex { color: #1E8449; font-weight: 900; } .sbu { color: #229954; font-weight: 900; }
+    .sre { color: #B7770D; font-weight: 900; } .sma { color: #C0392B; font-weight: 900; }
+    .nolotes { text-align: center; padding: 24px; color: var(--tl); font-size: 14px; font-weight: 600; line-height: 1.6; }
+
+    /* LLUVIA BADGE */
+    .lluvia-badge { font-size: 11px; font-weight: 800; border-radius: 8px; padding: 4px 6px; margin-bottom: 7px; line-height: 1.4; text-align: center; }
+    .lluvia-badge.v { background: #E9F8EF; color: #1A6E3E; }
+    .lluvia-badge.a { background: #FEF9E7; color: #8B6914; }
+    .lluvia-badge.r { background: #FDEDEC; color: #B03A2E; border: 1.5px solid #E74C3C; }
+
+    .hint { font-size: 11px; color: var(--tl); text-align: center; margin-top: 7px; font-style: italic; line-height: 1.4; }
+    .reft { font-size: 11px; color: #B7770D; margin-top: 5px; font-weight: 700; }
+    .blocked { opacity: 0.38; pointer-events: none; }
+    .blocked .card { background: #F9F4EE; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="hname">🌿 Rosario Deshidratado</div>
+  <div class="hsub">Secador Solar · Kion & Cúrcuma · Tingo María, Huánuco</div>
+</div>
+
+<div class="abar">
+  <div class="abar-inner">
+    <button class="abtn abtn-nuevo"   onclick="nuevoLote()">➕ Nuevo Lote</button>
+    <button class="abtn abtn-refresh" id="btn-rf" onclick="cargarClima()">🔄 Actualizar Clima</button>
+    <button class="abtn abtn-dash"    onclick="window.location.href='dashboard_secador_solar.html'">📊 Dashboard</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="slabel">☀️ Clima — Próximos 5 días en Tingo María</div>
+  <div id="clima-rango" class="clima-rango">Calculando rango...</div>
+  <div id="clima-panel">
+    <div class="cload"><span class="spin">⏳</span> Obteniendo pronóstico...</div>
+  </div>
+
+  <div class="slabel">📋 Módulo 1 — Planificación del lote</div>
+  <div class="card">
+    <div class="ctitle"><span class="sbadge">1</span> ¿Qué lote vas a procesar?</div>
+
+    <div class="fg">
+      <label class="fl" for="variedad">Producto a deshidratar</label>
+      <select id="variedad" onchange="onVariedad()">
+        <option value="">— Selecciona el producto —</option>
+        <option value="kion_h">🌿 Kion Hawaiano</option>
+        <option value="kion_c">🌿 Kion Criollo</option>
+        <option value="curcuma">🌿 Cúrcuma</option>
+        <option value="otros">🌿 Otros</option>
+      </select>
+    </div>
+
+    <div id="agua-otros-w" class="fg hidden">
+      <label class="fl" for="agua-otros">% Agua de la materia prima fresca</label>
+      <input type="number" id="agua-otros" placeholder="Ej: 72" min="30" max="95" inputmode="decimal">
+      <div class="hint">Típico: kion 70–75%, cúrcuma 75–80%</div>
+    </div>
+
+    <div class="fr2">
+      <div>
+        <label class="fl" for="pi">Peso inicial (kg)</label>
+        <input type="number" id="pi" placeholder="Ej: 100" min="1" inputmode="decimal">
+      </div>
+      <div>
+        <label class="fl" for="hm">Humedad meta (%)</label>
+        <input type="number" id="hm" placeholder="10" min="1" max="30" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl" for="rr">Rendimiento esperado (%)</label>
+      <input type="number" id="rr" placeholder="Ej: 31" min="1" max="60" inputmode="decimal">
+      <div class="reft">Referencia: Kion Hawaiano ~31% · Kion Criollo ~28% · Cúrcuma ~26%</div>
+    </div>
+
+    <button class="btn" onclick="calcA()">📊 Calcular mi lote</button>
+    <div id="res-a" class="rbox hidden"></div>
+  </div>
+
+  <div class="slabel">✅ Módulo 2 — Verificar el producto terminado</div>
+  <div id="mod-b" class="blocked">
+    <div class="card">
+      <div class="ctitle"><span class="sbadge">2</span> ¿Cuánto salió del secador?</div>
+      <div class="hint" style="margin-bottom:14px;font-style:normal;font-weight:700;">Completa el Módulo 1 para habilitar</div>
+      <div class="fg">
+        <label class="fl" for="pf">Peso final medido (kg)</label>
+        <input type="number" id="pf" placeholder="Ej: 31" min="0.1" inputmode="decimal">
+      </div>
+      <button class="btn" onclick="calcB()">🔍 Verificar humedad</button>
+      <div id="res-b" class="rbox hidden"></div>
+    </div>
+  </div>
+
+  <div class="slabel">🏆 Módulo 3 — Puntuación del proceso</div>
+  <div id="mod-c" class="blocked">
+    <div class="card">
+      <div class="ctitle"><span class="sbadge">3</span> Evaluar el lote completo</div>
+      <div class="hint" style="margin-bottom:14px;font-style:normal;font-weight:700;">Completa los Módulos 1 y 2 primero</div>
+      <div class="fg">
+        <label class="fl" for="hr">¿Cuántas horas duró el secado en total?</label>
+        <input type="number" id="hr" placeholder="Ej: 38" min="1" max="200" inputmode="decimal">
+      </div>
+      <button class="btn" onclick="calcC()">🏅 Ver puntuación del lote</button>
+      <div id="res-c" class="rbox hidden"></div>
+    </div>
+  </div>
+
+  <div class="slabel">📦 Historial de lotes</div>
+  <div class="card">
+    <div id="hist"></div>
+    <button class="bsec bdanger hidden" id="btn-bor" onclick="borrar()">🗑️ Borrar todo el historial</button>
+  </div>
+
+</div>
+
+<script>
+/* ═══ CONFIGURACIÓN ═════════════════════ */
+const APPS_SCRIPT_URL = 'TU_URL_APPS_SCRIPT_AQUI'; // ← Pegar URL del deploy
+
+const LAT = -9.2953, LON = -75.9975; // Tingo María, Huánuco
+
+const VARS = {
+  kion_h:  { agua: 0.72, nom: 'Kion Hawaiano',  meta: 10 },
+  kion_c:  { agua: 0.75, nom: 'Kion Criollo',   meta: 10 },
+  curcuma: { agua: 0.77, nom: 'Cúrcuma',         meta: 12 },
+  otros:   { agua: null, nom: 'Otros',            meta: 10 }
+};
+
+const DL = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const DC = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MC = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+/* ═══ ESTADO ════════════════════════════ */
+const S = {
+  cs:[], cn:[],
+  radH:null, tmpH:null, hrH:null, scH:null,
+  var:null, agua:null, pi:null, hm:null,
+  ss:null, pEsp:null, rendRef:null, tTeo:null,
+  pf:null, hrReal:null, rendReal:null, score:null, tReal:null
+};
+
+/* ═══ FECHAS ════════════════════════════ */
+function fmtNombre(ds, i) {
+  const [y,m,d] = ds.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const dow = dt.getDay(), dia = dt.getDate(), mes = MC[dt.getMonth()];
+  return { c: `${DL[dow]} ${dia}`, l: `${DL[dow]} ${dia} ${mes}` };
+}
+
+/* ═══ CLIMA ═════════════════════════════ */
+async function cargarClima() {
+  const panel = document.getElementById('clima-panel');
+  const btn   = document.getElementById('btn-rf');
+  const rango = document.getElementById('clima-rango');
+  panel.innerHTML = '<div class="cload"><span class="spin">⏳</span> Actualizando pronóstico...</div>';
+  btn.disabled = true; btn.textContent = '⏳ Actualizando...';
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=temperature_2m_max,shortwave_radiation_sum,precipitation_probability_max,precipitation_sum&hourly=relative_humidity_2m&timezone=America%2FLima&forecast_days=5`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error();
+    renderClima(await r.json());
+  } catch {
+    panel.innerHTML = '<div class="sem r" style="margin:0"><div class="semoji">⚠️</div><div class="stxt"><div class="stit r">Sin conexión</div><div class="ssub">No se pudo cargar el clima. Verifica tu internet.</div></div></div>';
+    rango.textContent = '';
+  } finally {
+    btn.disabled = false; btn.textContent = '🔄 Actualizar Clima';
+  }
+}
+
+function pClima(rad, tMax, hr, prec) {
+  const sR = Math.min(100,(rad/22)*100);
+  const sT = tMax>=28&&tMax<=38?100:tMax<28?Math.max(0,(tMax-18)/10*100):Math.max(0,(45-tMax)/7*100);
+  const sH = hr<=60?100:hr<=85?(85-hr)/25*100:0;
+  // Lluvia: factor crítico — 0-20% sin impacto, >80% colapsa el score
+  const sP = prec<=20?100:prec<=50?Math.max(40,100-(prec-20)*2):prec<=80?Math.max(0,40-(prec-50)*1.33):0;
+  return Math.round(0.40*sR+0.25*sT+0.15*sH+0.20*sP);
+}
+const clc = s => s>=75?'ideal':s>=50?'regular':'malo';
+const ic  = s => s>=75?'☀️':s>=50?'⛅':'🌧️';
+const etc = s => s>=75?'Ideal':s>=50?'Regular':'No ideal';
+const coc = s => s>=75?'#1E8449':s>=50?'#B7770D':'#C0392B';
+const rcR = r => r>=18?'alta':r>=12?'media':'baja';
+const etR = r => r>=18?'⚡ Alta':r>=12?'⚡ Media':'⚡ Baja';
+
+function renderClima(data) {
+  const D = data.daily, H = data.hourly;
+  const sc = [], nm = [];
+  for (let i=0; i<5; i++) {
+    const rad  = D.shortwave_radiation_sum[i]||0;
+    const tMx  = D.temperature_2m_max[i]||25;
+    const hr   = H.relative_humidity_2m[i*24+12]||70;
+    const prec = D.precipitation_probability_max[i]||0;
+    sc.push(pClima(rad, tMx, hr, prec));
+    nm.push(fmtNombre(D.time[i], i));
+  }
+  S.cs=sc; S.cn=nm;
+  S.radH=D.shortwave_radiation_sum[0];
+  S.tmpH=D.temperature_2m_max[0];
+  S.hrH =H.relative_humidity_2m[12];
+  S.scH =sc[0];
+
+  // Rango de fechas
+  const d0 = new Date(D.time[0]+'T12:00:00');
+  const d4 = new Date(D.time[4]+'T12:00:00');
+  const m4s = (d4.getMonth()+1).toString().padStart(2,'0');
+  document.getElementById('clima-rango').textContent =
+    `del ${DL[d0.getDay()]} ${d0.getDate()} al ${DL[d4.getDay()]} ${d4.getDate()}/${m4s}/${d4.getFullYear()}`;
+
+  const mi = sc.indexOf(Math.max(...sc));
+  let html = `
+    <div class="mdb">
+      <div class="mdb-l">⭐ Mejor día para iniciar tu lote</div>
+      <div class="mdb-d">${nm[mi].l} ${ic(sc[mi])}</div>
+      <div class="mdb-s">Puntuación climática: ${sc[mi]} / 100</div>
+    </div>
+    <div class="cscroll"><div class="crow">`;
+
+  for (let i=0; i<5; i++) {
+    const s    = sc[i];
+    const rad  = D.shortwave_radiation_sum[i]||0;
+    const tmp  = (D.temperature_2m_max[i]||0).toFixed(0);
+    const hr   = (H.relative_humidity_2m[i*24+12]||0).toFixed(0);
+    const prec = D.precipitation_probability_max[i]||0;
+    const precSm = (D.precipitation_sum[i]||0).toFixed(1);
+    const rc   = rcR(rad);
+
+    // Semáforo de lluvia
+    let lluviaHtml;
+    if (prec >= 60) {
+      lluviaHtml = `<div class="lluvia-badge r">🌧️ LLUVIA ${prec}%<br><span style="font-size:9px;font-weight:600;">${precSm} mm esperados</span></div>`;
+    } else if (prec >= 30) {
+      lluviaHtml = `<div class="lluvia-badge a">⚠️ Posible lluvia ${prec}%</div>`;
+    } else {
+      lluviaHtml = `<div class="lluvia-badge v">✅ Sin lluvia ${prec}%</div>`;
+    }
+
+    html += `
+      <div class="ccard ${clc(s)}">
+        <div class="cdia">${nm[i].c}</div>
+        <div class="cicon">${ic(s)}</div>
+        ${lluviaHtml}
+        <div class="rv ${rc}">${rad.toFixed(1)}</div>
+        <div class="ru">Radiación Solar</div>
+        <div class="re ${rc}">${etR(rad)}</div>
+        <div class="cfila">🌡️ ${tmp}°C</div>
+        <div class="cfila">💧 HR ${hr}%</div>
+        <div class="sbw"><div class="sb" style="width:${s}%;background:${coc(s)}"></div></div>
+        <div class="csl ${clc(s)}">${etc(s)} · ${s}pts</div>
+      </div>`;
+  }
+  html += `</div></div><div class="shint">desliza para ver más →</div>`;
+  document.getElementById('clima-panel').innerHTML = html;
+}
+
+/* ═══ MÓDULO A ══════════════════════════ */
+function onVariedad() {
+  const v = document.getElementById('variedad').value;
+  document.getElementById('agua-otros-w').classList.toggle('hidden', v !== 'otros');
+  if (v && VARS[v]) document.getElementById('hm').value = VARS[v].meta;
+}
+
+function calcA() {
+  const v  = document.getElementById('variedad').value;
+  const pi = parseFloat(document.getElementById('pi').value);
+  const hm = parseFloat(document.getElementById('hm').value);
+  const rr = parseFloat(document.getElementById('rr').value);
+
+  if (!v)               return alert('⚠️ Selecciona el producto a deshidratar.');
+  if (!pi||pi<=0)       return alert('⚠️ Ingresa el peso inicial en kilos.');
+  if (!hm||hm<=0||hm>=100) return alert('⚠️ La humedad meta debe estar entre 1 y 99%.');
+  if (!rr||rr<=0||rr>=100) return alert('⚠️ Ingresa el rendimiento esperado (%).');
+
+  let agua = VARS[v].agua;
+  if (v === 'otros') {
+    const ao = parseFloat(document.getElementById('agua-otros').value);
+    if (!ao||ao<=0||ao>=100) return alert('⚠️ Ingresa el % de agua de la materia prima fresca.');
+    agua = ao/100;
+  }
+
+  const hmD  = hm/100;
+  const ss   = pi*(1-agua);
+  const pEsp = pi*(rr/100);
+  const s0   = S.cs[0]||0, s1 = S.cs[1]||0;
+  const tTeo = s0>=70&&s1>=65?36:s0>=50?48:60;
+
+  let ti,tt,ts;
+  if (tTeo===36) { ti='☀️'; tt='1 día + medio día (~36 h)'; ts='El clima está ideal para iniciar hoy'; }
+  else if(tTeo===48) { ti='⛅'; tt='2 días completos (~48 h)'; ts='Clima aceptable — vigila el proceso'; }
+  else { ti='🌧️'; tt='No recomendado hoy (~60 h o más)'; ts='Espera un mejor día según el pronóstico'; }
+
+  Object.assign(S, { var:v, agua, pi, hm:hmD, ss, pEsp, rendRef:rr, tTeo });
+
+  document.getElementById('res-a').innerHTML = `
+    <div class="rrow"><div class="rlbl">Producto</div><div class="rval">${VARS[v].nom}</div></div>
+    <div class="rrow"><div class="rlbl">Peso inicial</div><div class="rval hl">${pi.toFixed(1)} kg</div></div>
+    <div class="rrow"><div class="rlbl">Peso final esperado (al ${rr}% rend.)</div><div class="rval hl">${pEsp.toFixed(1)} kg</div></div>
+    <div class="tbadge">
+      <div class="tic">${ti}</div>
+      <div class="ttxt">Tiempo estimado: ${tt}</div>
+      <div class="tsub">${ts}</div>
+    </div>`;
+  document.getElementById('res-a').classList.remove('hidden');
+  document.getElementById('mod-b').classList.remove('blocked');
+}
+
+/* ═══ MÓDULO B ══════════════════════════ */
+function calcB() {
+  const pf = parseFloat(document.getElementById('pf').value);
+  if (!pf||pf<=0)    return alert('⚠️ Ingresa los kilos que salieron del secador.');
+  if (pf >= S.pi)    return alert('⚠️ El peso final no puede ser mayor o igual al peso inicial.');
+  if (pf < S.ss)     return alert(`⚠️ Peso final menor que sólidos secos (${S.ss.toFixed(1)} kg). Verifica el dato.`);
+
+  const hrReal  = 1-(S.ss/pf);
+  const rendReal = (pf/S.pi)*100;
+  const hrPct   = hrReal*100;
+  const metaPct = S.hm*100;
+  S.pf=pf; S.hrReal=hrReal; S.rendReal=rendReal;
+
+  // Semáforo relativo a la meta del producto (no a umbrales fijos)
+  let s;
+  if (hrPct <= metaPct) {
+    s = { e:'🟢', c:'v', t:'¡Cumple la meta!', sub:`El producto tiene ${hrPct.toFixed(1)}% de humedad — cumple la meta de ≤${metaPct.toFixed(0)}%` };
+  } else if (hrPct <= metaPct + 5) {
+    s = { e:'🟡', c:'a', t:'Humedad aceptable', sub:`Tiene ${hrPct.toFixed(1)}% — meta: ≤${metaPct.toFixed(0)}%. Puede secar un poco más.` };
+  } else {
+    const exc = pf-(S.ss/(1-S.hm));
+    const had = S.cs[0]>=65?4:S.cs[0]>=50?6:8;
+    s = { e:'🔴', c:'r', t:'Necesita más secado', sub:`Humedad: ${hrPct.toFixed(1)}% — meta ≤${metaPct.toFixed(0)}%<br>Agua por eliminar: ~${exc.toFixed(2)} kg · ~${had} h más` };
+  }
+
+  document.getElementById('res-b').innerHTML = `
+    <div class="rrow"><div class="rlbl">Kilos que salieron del secador</div><div class="rval hl">${pf.toFixed(1)} kg</div></div>
+    <div class="sem ${s.c}">
+      <div class="semoji">${s.e}</div>
+      <div class="stxt">
+        <div class="stit ${s.c}">${s.t}</div>
+        <div class="ssub">${s.sub}</div>
+      </div>
+    </div>`;
+  document.getElementById('res-b').classList.remove('hidden');
+  document.getElementById('mod-c').classList.remove('blocked');
+}
+
+/* ═══ MÓDULO C ══════════════════════════ */
+function calcC() {
+  const hReal = parseFloat(document.getElementById('hr').value);
+  if (!hReal||hReal<=0) return alert('⚠️ Ingresa las horas que duró el secado.');
+
+  const hrPct  = S.hrReal*100;
+  const metaP  = S.hm*100;
+  // Humedad (40%) — relativo a la meta del producto
+  const pH = hrPct<=metaP?100 : hrPct<=metaP+2?85 : hrPct<=metaP+5?65 : Math.max(0,Math.round(100-(hrPct-metaP)*8));
+
+  // Rendimiento (40%) — penaliza si humedad fuera de norma
+  const hrOver = Math.max(0, S.hrReal - S.hm);
+  let pR;
+  if (hrOver > 0.03) {
+    // Producto húmedo → rendimiento no es real (aún tiene agua en exceso)
+    pR = Math.max(0, Math.round(100 - hrOver * 400));
+  } else {
+    // Humedad cerca de meta → usa rendimiento efectivo corregido
+    const pfEf  = S.pf*(1-S.hrReal)/(1-S.hm);
+    const rendEf = (pfEf/S.pi)*100;
+    const ratio  = rendEf/S.rendRef;
+    pR = ratio>=0.97?100:ratio>=0.90?80:ratio>=0.80?60:Math.max(0,Math.round(ratio*75));
+  }
+
+  // Tiempo (20%) — más rápido es mejor
+  const over = hReal - S.tTeo;
+  const pT = over<=0?100:over<=8?80:over<=16?60:40;
+
+  const total = Math.round(0.40*pH+0.40*pR+0.20*pT);
+  S.score=total; S.tReal=hReal;
+
+  let cls,emoji,msg;
+  if      (total>=85){cls='ex';emoji='🏆';msg='¡Proceso excelente!<br>Calidad y eficiencia muy bien logradas.';}
+  else if (total>=70){cls='bu';emoji='👍';msg='Buen proceso.<br>Pequeños ajustes te llevarán a la excelencia.';}
+  else if (total>=50){cls='re';emoji='⚠️';msg='Proceso regular.<br>Revisa la humedad final o el tiempo de secado.';}
+  else               {cls='ma';emoji='📋';msg='Proceso a mejorar.<br>Consulta con tu asesora técnica para ajustar.';}
+
+  const bc = total>=70?'#1E8449':total>=50?'#B7770D':'#C0392B';
+
+  document.getElementById('res-c').innerHTML = `
+    <div class="scirc ${cls}"><div class="sn">${total}</div><div class="su">/ 100</div></div>
+    <div class="srecom">${emoji} ${msg}</div>
+    <div>
+      <div class="sitem">
+        <div class="slbl">💧 Humedad del producto</div>
+        <div class="sbarw"><div class="sbar" style="width:${pH}%;background:${bc}"></div></div>
+        <div class="spts">${pH} pts</div>
+      </div>
+      <div class="sitem">
+        <div class="slbl">⚖️ Rendimiento del lote</div>
+        <div class="sbarw"><div class="sbar" style="width:${pR}%;background:${bc}"></div></div>
+        <div class="spts">${pR} pts</div>
+      </div>
+      <div class="sitem">
+        <div class="slbl">⏱️ Eficiencia de tiempo</div>
+        <div class="sbarw"><div class="sbar" style="width:${pT}%;background:${bc}"></div></div>
+        <div class="spts">${pT} pts</div>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:14px;">Humedad 40% · Rendimiento 40% · Tiempo 20% · Terminar antes suma puntos</div>
+    <button class="bsec" onclick="guardar()" style="margin-top:16px;">💾 Guardar este lote</button>`;
+  document.getElementById('res-c').classList.remove('hidden');
+}
+
+/* ═══ NUEVO LOTE ════════════════════════ */
+function nuevoLote() {
+  if (!confirm('¿Iniciar un nuevo lote? Se limpiarán todos los datos actuales.')) return;
+  ['variedad','pi','hm','rr','agua-otros','pf','hr']
+    .forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+  document.getElementById('agua-otros-w').classList.add('hidden');
+  ['res-a','res-b','res-c'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('mod-b').classList.add('blocked');
+  document.getElementById('mod-c').classList.add('blocked');
+  Object.assign(S,{var:null,agua:null,pi:null,hm:null,ss:null,pEsp:null,rendRef:null,tTeo:null,pf:null,hrReal:null,rendReal:null,score:null,tReal:null});
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ═══ GUARDAR — localStorage + Google Sheets ══ */
+const SK = 'secador_lotes_v5';
+const leerL = () => { try { return JSON.parse(localStorage.getItem(SK)||'[]'); } catch { return []; } };
+
+function genId(lotes) {
+  const d = new Date();
+  const yy=d.getFullYear(), mm=(d.getMonth()+1).toString().padStart(2,'0'), dd=d.getDate().toString().padStart(2,'0');
+  return `Lote-${(lotes.length+1).toString().padStart(3,'0')}-${yy}${mm}${dd}`;
+}
+
+async function enviarSheets(datos) {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('TU_URL')) return;
+  try {
+    await fetch(APPS_SCRIPT_URL, { method:'POST', body:JSON.stringify(datos), redirect:'follow' });
+  } catch(e) { console.warn('Sheets no disponible:', e.message); }
+}
+
+function guardar() {
+  const lotes = leerL();
+  const d = new Date();
+  const fecha = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+  const obj = {
+    id:          genId(lotes),
+    fecha,
+    producto:    VARS[S.var].nom,
+    pi:          S.pi.toFixed(1),
+    pf_esp:      S.pEsp.toFixed(1),
+    pf_real:     S.pf.toFixed(1),
+    h_prod:      (S.hrReal*100).toFixed(1),
+    rend:        S.rendReal.toFixed(1),
+    t_teo:       S.tTeo,
+    t_real:      S.tReal,
+    rad:         S.radH!=null?S.radH.toFixed(1):'0',
+    temp:        S.tmpH!=null?S.tmpH.toFixed(1):'0',
+    hr:          S.hrH!=null?S.hrH.toFixed(0):'0',
+    score_clima: S.scH!=null?S.scH:0,
+    score_lote:  S.score
+  };
+  lotes.unshift(obj);
+  localStorage.setItem(SK, JSON.stringify(lotes));
+  renderH();
+  enviarSheets(obj);
+  alert(`✅ Lote ${obj.id} guardado correctamente.`);
+}
+
+function borrar() {
+  if (!confirm('¿Borrar todo el historial local? Esta acción no se puede deshacer.')) return;
+  localStorage.removeItem(SK);
+  renderH();
+}
+
+const scls = s => s>=85?'sex':s>=70?'sbu':s>=50?'sre':'sma';
+
+function renderH() {
+  const lotes = leerL();
+  const el = document.getElementById('hist');
+  const bb = document.getElementById('btn-bor');
+  if (!lotes.length) {
+    el.innerHTML='<div class="nolotes">📦 Aún no hay lotes guardados.<br>Completa un proceso y presiona "Guardar lote".</div>';
+    bb.classList.add('hidden'); return;
+  }
+  bb.classList.remove('hidden');
+  el.innerHTML = `
+    <div class="tscroll">
+      <table class="tabla">
+        <thead><tr>
+          <th>ID</th><th>Fecha</th><th>Producto</th>
+          <th>Pi (kg)</th><th>Pf esp.</th><th>Pf real</th>
+          <th>H prod</th><th>Rend.</th>
+          <th>t.teo</th><th>t.real</th>
+          <th>Rad (MJ)</th><th>Temp</th><th>HR%</th><th>Clima</th><th>Score</th>
+        </tr></thead>
+        <tbody>
+          ${lotes.map(l=>`
+            <tr>
+              <td>${l.id}</td><td>${l.fecha}</td><td>${l.producto}</td>
+              <td>${l.pi}</td><td>${l.pf_esp}</td><td>${l.pf_real}</td>
+              <td>${l.h_prod}%</td><td>${l.rend}%</td>
+              <td>${l.t_teo}h</td><td>${l.t_real}h</td>
+              <td>${l.rad}</td><td>${l.temp}°C</td><td>${l.hr}%</td><td>${l.score_clima}pts</td>
+              <td class="${scls(l.score_lote)}">${l.score_lote}/100</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+/* ═══ INIT ══════════════════════════════ */
+cargarClima();
+renderH();
+</script>
+</body>
+</html>
