@@ -160,15 +160,15 @@
 <body>
 
 <div class="header">
-  <div class="hname">🌿 Calculadora de Secador Solar</div>
-  <div class="hsub">Kion & Cúrcuma · Tingo María, Huánuco</div>
+  <div class="hname">🌿 Rosario Deshidratado</div>
+  <div class="hsub">Secador Solar · Kion & Cúrcuma · Tingo María, Huánuco</div>
 </div>
 
 <div class="abar">
   <div class="abar-inner">
     <button class="abtn abtn-nuevo"   onclick="nuevoLote()">➕ Nuevo Lote</button>
     <button class="abtn abtn-refresh" id="btn-rf" onclick="cargarClima()">🔄 Actualizar Clima</button>
-    <button class="abtn abtn-dash"    onclick="window.location.href='dashboard_secador.html'">📊 Dashboard</button>
+    <button class="abtn abtn-dash"    onclick="window.location.href='dashboard_secador_solar.html'">📊 Dashboard</button>
   </div>
 </div>
 
@@ -576,8 +576,16 @@ function genId(lotes) {
 async function enviarSheets(datos) {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('TU_URL')) return;
   try {
-    await fetch(APPS_SCRIPT_URL, { method:'POST', body:JSON.stringify(datos), redirect:'follow' });
-  } catch(e) { console.warn('Sheets no disponible:', e.message); }
+    // Mismo patrón que el yogurt: datos como e.parameter.data (form-encoded)
+    await fetch(APPS_SCRIPT_URL, {
+      method:  'POST',
+      mode:    'no-cors',
+      body:    'data=' + encodeURIComponent(JSON.stringify(datos))
+    });
+    console.log('✅ Lote enviado a Google Sheets:', datos.id);
+  } catch(e) {
+    console.warn('⚠️ No se pudo enviar a Sheets:', e.message);
+  }
 }
 
 function guardar() {
