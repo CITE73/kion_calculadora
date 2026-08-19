@@ -260,7 +260,7 @@
 
 <script>
 /* ═══ CONFIGURACIÓN ═════════════════════ */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzH4_CmemnxNI0P_KqHoX6ScH2ilL18nesUzgNulSxiBpsybzWyeF3ZxP9gPi8zXqy7/exec'; // ← Pegar URL del deploy
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXj6veITnEAkNdThiMPj0Z29U3E_I7O5Mjo6VMJdHJtw3aEwgHGyxSwjTw-xSa0YA/exec'; // ← Pegar URL del deploy
 
 const LAT = -9.2953, LON = -75.9975; // Tingo María, Huánuco
 
@@ -430,7 +430,10 @@ function calcA() {
   }
 
   const hmD  = hm/100;
-  const ss   = pi*(1-agua);
+  // solidosSecos derivado del rendimiento ingresado — consistente con el usuario
+  // si rend=30% y hm=14%, entonces ss = pi × 0.30 × (1-0.14)
+  // verificación: si pf = pi×0.30, hrReal = 1 - ss/pf = 1 - (1-0.14) = 14% ✓
+  const ss   = pi * (rr/100) * (1 - hmD);
   const pEsp = pi*(rr/100);
   const s0   = S.cs[0]||0, s1 = S.cs[1]||0;
   const tTeo = s0>=70&&s1>=65?36:s0>=50?48:60;
@@ -583,13 +586,9 @@ function genId(lotes) {
 async function enviarSheets(datos) {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('TU_URL')) return;
   try {
-    // application/x-www-form-urlencoded permite que Apps Script lea e.parameter.data
-    await fetch(APPS_SCRIPT_URL, {
-      method:  'POST',
-      mode:    'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body:    'data=' + encodeURIComponent(JSON.stringify(datos))
-    });
+    // GET con parámetros URL — más confiable que POST con no-cors en Apps Script
+    const url = APPS_SCRIPT_URL + '?action=guardar&data=' + encodeURIComponent(JSON.stringify(datos));
+    await fetch(url, { mode: 'no-cors' });
     console.log('✅ Lote enviado a Sheets:', datos.id);
   } catch(e) {
     console.warn('⚠️ Sheets:', e.message);
