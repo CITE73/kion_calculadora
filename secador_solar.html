@@ -312,12 +312,12 @@ async function cargarClima() {
   }
 }
 
-function pClima(rad, tMax, hr, prec) {
+function pClima(rad, tMax, hr, prec, precMm) {
   const sR = Math.min(100,(rad/22)*100);
   const sT = tMax>=28&&tMax<=38?100:tMax<28?Math.max(0,(tMax-18)/10*100):Math.max(0,(45-tMax)/7*100);
   const sH = hr<=60?100:hr<=85?(85-hr)/25*100:0;
-  // Lluvia: factor crítico — 0-20% sin impacto, >80% colapsa el score
-  const sP = prec<=20?100:prec<=50?Math.max(40,100-(prec-20)*2):prec<=80?Math.max(0,40-(prec-50)*1.33):0;
+  // Penalización basada en mm esperados (más preciso que solo probabilidad)
+  const sP = precMm>=10?0 : precMm>=5?20 : precMm>=2?50 : precMm>=0.5?75 : prec>=60?85 : 100;
   return Math.round(0.40*sR+0.25*sT+0.15*sH+0.20*sP);
 }
 const clc = s => s>=75?'ideal':s>=50?'regular':'malo';
@@ -331,11 +331,12 @@ function renderClima(data) {
   const D = data.daily, H = data.hourly;
   const sc = [], nm = [];
   for (let i=0; i<5; i++) {
-    const rad  = D.shortwave_radiation_sum[i]||0;
-    const tMx  = D.temperature_2m_max[i]||25;
-    const hr   = H.relative_humidity_2m[i*24+12]||70;
-    const prec = D.precipitation_probability_max[i]||0;
-    sc.push(pClima(rad, tMx, hr, prec));
+    const rad    = D.shortwave_radiation_sum[i]||0;
+    const tMx    = D.temperature_2m_max[i]||25;
+    const hr     = H.relative_humidity_2m[i*24+12]||70;
+    const prec   = D.precipitation_probability_max[i]||0;
+    const precMm = D.precipitation_sum[i]||0;
+    sc.push(pClima(rad, tMx, hr, prec, precMm));
     nm.push(fmtNombre(D.time[i], i));
   }
   S.cs=sc; S.cn=nm;
@@ -367,16 +368,22 @@ function renderClima(data) {
     const hr   = (H.relative_humidity_2m[i*24+12]||0).toFixed(0);
     const prec = D.precipitation_probability_max[i]||0;
     const precSm = (D.precipitation_sum[i]||0).toFixed(1);
-    const rc   = rcR(rad);
+    const rc     = rcR(rad);
 
-    // Semáforo de lluvia
+    // Etiqueta basada en mm reales (más precisa que solo probabilidad)
     let lluviaHtml;
-    if (prec >= 60) {
-      lluviaHtml = `<div class="lluvia-badge r">🌧️ LLUVIA ${prec}%<br><span style="font-size:9px;font-weight:600;">${precSm} mm esperados</span></div>`;
+    if (precMm >= 10) {
+      lluviaHtml = `<div class="lluvia-badge r">⛈️ Lluvia intensa<br><span style="font-size:9px;">${precMm.toFixed(1)} mm esperados</span></div>`;
+    } else if (precMm >= 3) {
+      lluviaHtml = `<div class="lluvia-badge r">🌧️ Lluvia moderada<br><span style="font-size:9px;">${precMm.toFixed(1)} mm esperados</span></div>`;
+    } else if (precMm >= 0.5) {
+      lluviaHtml = `<div class="lluvia-badge a">🌦️ Lluvia ligera ${precMm.toFixed(1)} mm</div>`;
+    } else if (prec >= 60) {
+      lluviaHtml = `<div class="lluvia-badge a">⛅ Nublado (${prec}%)</div>`;
     } else if (prec >= 30) {
-      lluviaHtml = `<div class="lluvia-badge a">⚠️ Posible lluvia ${prec}%</div>`;
+      lluviaHtml = `<div class="lluvia-badge a">🌤️ Parcialmente nublado</div>`;
     } else {
-      lluviaHtml = `<div class="lluvia-badge v">✅ Sin lluvia ${prec}%</div>`;
+      lluviaHtml = `<div class="lluvia-badge v">☀️ Despejado</div>`;
     }
 
     html += `
@@ -576,15 +583,16 @@ function genId(lotes) {
 async function enviarSheets(datos) {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('TU_URL')) return;
   try {
-    // Mismo patrón que el yogurt: datos como e.parameter.data (form-encoded)
+    // application/x-www-form-urlencoded permite que Apps Script lea e.parameter.data
     await fetch(APPS_SCRIPT_URL, {
       method:  'POST',
       mode:    'no-cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body:    'data=' + encodeURIComponent(JSON.stringify(datos))
     });
-    console.log('✅ Lote enviado a Google Sheets:', datos.id);
+    console.log('✅ Lote enviado a Sheets:', datos.id);
   } catch(e) {
-    console.warn('⚠️ No se pudo enviar a Sheets:', e.message);
+    console.warn('⚠️ Sheets:', e.message);
   }
 }
 
